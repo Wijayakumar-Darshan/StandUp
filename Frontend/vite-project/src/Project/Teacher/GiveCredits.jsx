@@ -7,16 +7,17 @@ export default function GiveCredits() {
   const { assignmentId } = useParams();
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
-  const [assignments, setAssignments] = useState([]); // Store teacher's assignments with credits
+  const [assignments, setAssignments] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState("");
-  const [selectedAssignment, setSelectedAssignment] = useState(""); // Store selected assignment
+  const [selectedAssignment, setSelectedAssignment] = useState(assignmentId || "");
   const [marks, setMarks] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch students (active only)
   const fetchStudents = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) {
+      toast.error("Unauthorized! Please login.");
       navigate("/login");
       return;
     }
@@ -35,17 +36,17 @@ export default function GiveCredits() {
       }
 
       const data = await response.json();
-      setStudents(data.filter(student => student.active)); // Only show active students
+      setStudents(data.filter(student => student.active));
     } catch (error) {
       console.error("Error fetching students:", error);
       toast.error("Failed to load students.");
     }
   }, [navigate]);
 
-  // Fetch teacher's assignments with credit marks
   const fetchAssignments = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) {
+      toast.error("Unauthorized! Please login.");
       navigate("/login");
       return;
     }
@@ -64,8 +65,7 @@ export default function GiveCredits() {
       }
 
       const data = await response.json();
-      setAssignments(data.assignments); // Assuming the response includes assignments with credit marks
-
+      setAssignments(data.assignments || []);
     } catch (error) {
       console.error("Error fetching assignments:", error);
       toast.error("Failed to load assignments.");
@@ -87,8 +87,16 @@ export default function GiveCredits() {
     }
 
     const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Unauthorized! Please login.");
+      navigate("/login");
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      const response = await fetch("http://localhost:8000/su/give-credits", {
+      const response = await fetch("http://localhost:8000/su/teacher/assignment/{assignmentId}/give-credit", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -97,15 +105,21 @@ export default function GiveCredits() {
         body: JSON.stringify({ studentId: selectedStudent, assignmentId: selectedAssignment, marks }),
       });
 
+      if (response.status === 403) {
+        throw new Error("Access Denied! You are not authorized to assign credits.");
+      }
+
       if (!response.ok) {
-        throw new Error("Failed to assign credits");
+        throw new Error("Failed to assign credits.");
       }
 
       toast.success("Credits assigned successfully!");
       navigate("/teacher-dashboard");
     } catch (error) {
       console.error("Error assigning credits:", error);
-      toast.error("Failed to assign credits.");
+      toast.error(error.message || "Failed to assign credits.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -157,9 +171,10 @@ export default function GiveCredits() {
 
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600"
+            className={`w-full p-2 rounded-lg text-white ${isSubmitting ? "bg-gray-400" : "bg-blue-500 hover:bg-blue-600"}`}
+            disabled={isSubmitting}
           >
-            Submit Credits
+            {isSubmitting ? "Submitting..." : "Submit Credits"}
           </button>
         </form>
       </div>

@@ -65,7 +65,6 @@ export default function EditTeacher() {
         throw new Error("No authentication token found");
       }
   
-      // Prepare update data
       const updateData = {
         name: formData.name,
         active: formData.active,
@@ -75,7 +74,6 @@ export default function EditTeacher() {
           .filter(module => module.length > 0)
       };
   
-      // Only include password if it was changed
       if (formData.password) {
         updateData.password = formData.password;
       }
@@ -89,14 +87,21 @@ export default function EditTeacher() {
         body: JSON.stringify(updateData)
       });
   
-      const responseData = await response.json();
-      
+      // Handle both JSON and text responses
+      let responseData;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        responseData = await response.json();
+      } else {
+        responseData = await response.text();
+      }
+  
       if (!response.ok) {
-        throw new Error(responseData.message || "Failed to update teacher");
+        throw new Error(responseData.message || responseData || "Failed to update teacher");
       }
   
       toast.success("Teacher updated successfully!");
-      navigate("/manage-teacher");
+      navigate("/manage-teacher"); // Fixed navigation path
     } catch (error) {
       console.error("Error updating teacher:", error);
       toast.error(error.message || "Failed to update teacher");
