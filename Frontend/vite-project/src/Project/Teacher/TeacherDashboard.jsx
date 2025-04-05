@@ -24,7 +24,14 @@ export default function TeacherDashboard() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
+          credentials: 'include', // Important for cookies/session if using them
         });
+
+        if (response.status === 401) {
+          localStorage.removeItem("token");
+          navigate("/login");
+          return;
+        }
 
         if (!response.ok) {
           throw new Error("Failed to fetch teacher data");
@@ -36,6 +43,10 @@ export default function TeacherDashboard() {
       } catch (error) {
         console.error("Error fetching teacher data:", error);
         toast.error(error.message);
+        if (error.message.includes("401")) {
+          localStorage.removeItem("token");
+          navigate("/login");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -49,6 +60,26 @@ export default function TeacherDashboard() {
     localStorage.removeItem("role");
     navigate("/login");
     toast.info("Logged out successfully");
+  };
+
+  const handleViewAssignment = (assignmentId) => {
+    navigate(`/assignment/${assignmentId}`);
+  };
+
+  const handleViewModule = (module) => {
+    navigate(`/module/${encodeURIComponent(module)}`);
+  };
+
+  const handleCreateAssignment = (module) => {
+    if (module) {
+      navigate(`/create-assignment?module=${encodeURIComponent(module)}`);
+    } else {
+      navigate("/create-assignment");
+    }
+  };
+
+  const handleManageCredits = () => {
+    navigate("/manage-credits"); // Navigate to ManageCredits page
   };
 
   if (isLoading) {
@@ -104,13 +135,13 @@ export default function TeacherDashboard() {
 
       <div className="mb-6">
         <button
-          onClick={() => navigate("/create-assignment")}
+          onClick={() => handleCreateAssignment()}
           className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 mr-4"
         >
           Create New Assignment
         </button>
         <button
-          onClick={() => navigate("/give-credits/:assignmentId")}
+          onClick={handleManageCredits} // Added this handler
           className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
         >
           Manage All Assignments
@@ -132,7 +163,7 @@ export default function TeacherDashboard() {
                 {assignmentsByModule[module]?.length > 0 ? (
                   <ul className="space-y-2">
                     {assignmentsByModule[module]
-                      .slice(0, 3) // Show only 3 recent assignments
+                      .slice(0, 3)
                       .map((assignment) => (
                         <li
                           key={assignment.id}
@@ -141,9 +172,7 @@ export default function TeacherDashboard() {
                           <div className="flex justify-between items-center">
                             <span>{assignment.title}</span>
                             <button
-                              onClick={() =>
-                                navigate(`/assignment/${assignment.id}`)
-                              }
+                              onClick={() => handleViewAssignment(assignment.id)}
                               className="text-blue-500 hover:text-blue-700 text-sm"
                             >
                               View
@@ -152,6 +181,13 @@ export default function TeacherDashboard() {
                           <div className="text-sm text-gray-500">
                             Due: {new Date(assignment.dueDate).toLocaleDateString()}
                           </div>
+                          {assignment.status && (
+                            <div className="text-sm">
+                              Status: <span className={`font-medium ${assignment.status === 'Submitted' ? 'text-green-600' : 'text-yellow-600'}`} >
+                                {assignment.status}
+                              </span>
+                            </div>
+                          )}
                         </li>
                       ))}
                   </ul>
@@ -160,13 +196,13 @@ export default function TeacherDashboard() {
                 )}
                 <div className="mt-4 flex space-x-2">
                   <button
-                    onClick={() => navigate(`/create-assignment?module=${module}`)}
+                    onClick={() => handleCreateAssignment(module)}
                     className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
                   >
                     Add Assignment
                   </button>
                   <button
-                    onClick={() => navigate(`/module/:module`)}
+                    onClick={() => handleViewModule(module)}
                     className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
                   >
                     View All

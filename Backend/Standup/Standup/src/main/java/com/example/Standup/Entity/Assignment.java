@@ -25,10 +25,14 @@ public class Assignment {
     @JoinColumn(name = "teacher_id", nullable = false)
     private Teacher teacher;
 
-    @Column(name = "module")
-    private String module;
+    @Column(name = "modules")
+    private String modules;
 
     @ManyToOne
     @JoinColumn(name = "student_id") // or whatever your FK column is named
     private Student student;
+
+    public String getModule() {
+        return "";
+    }
 }

@@ -16,7 +16,7 @@ export default function ManageCredits() {
         return;
       }
       try {
-        const response = await fetch("http://localhost:8000/su/teacher/assignment/{assignmentId}/give-credit", {
+        const response = await fetch(`http://localhost:8000/su/teacher/assignment/${assignmentId}/give-credit`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`,

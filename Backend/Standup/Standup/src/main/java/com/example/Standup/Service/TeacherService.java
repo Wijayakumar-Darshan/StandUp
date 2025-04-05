@@ -1,9 +1,6 @@
 package com.example.Standup.Service;
 
-import com.example.Standup.Entity.Assignment;
-import com.example.Standup.Entity.Credit;
-import com.example.Standup.Entity.Feedback;
-import com.example.Standup.Entity.Teacher;
+import com.example.Standup.Entity.*;
 import com.example.Standup.Enum.Role;
 import com.example.Standup.Repository.*;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +13,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TeacherService {
     private final TeacherRepository teacherRepository;
+    private final StudentRepository studentRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder; // Inject PasswordEncoder
     private final AssignmentRepository assignmentRepository;
@@ -71,5 +69,12 @@ public class TeacherService {
 
     public Teacher getTeacherByUsername(String username) {
         return teacherRepository.findByUsername(username).orElse(null);
+    }
+    public List<Student> getStudentsByModules(String module) {
+        return studentRepository.findByModulesContaining(module);
+    }
+
+    public List<Assignment> getAssignmentsByModules(String module) {
+        return assignmentRepository.findByModules(module);
     }
 }

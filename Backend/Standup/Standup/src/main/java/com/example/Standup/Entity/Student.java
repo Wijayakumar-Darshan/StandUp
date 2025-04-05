@@ -18,7 +18,7 @@ public class Student extends User {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "student_modules", joinColumns = @JoinColumn(name = "student_id"))
-    @Column(name = "module")
+    @Column(name = "modules")
     private Set<String> modules;  // Changed from List to Set for uniqueness
 
     @Column(name = "name", nullable = false)

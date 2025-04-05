@@ -7,18 +7,24 @@ import com.example.Standup.Repository.AssignmentRepository;
 import com.example.Standup.Repository.StudentRepository;
 import com.example.Standup.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class StudentService {
+
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder; // Inject PasswordEncoder
+
+    @Autowired  // Make sure this annotation is present
     private AssignmentRepository assignmentRepository;
+
 
 
     public Student createStudent(Student student) {
@@ -77,4 +83,8 @@ public class StudentService {
         return assignmentRepository.findByStudent(student); // Assuming such a relationship exists
     }
 
+
+    public Map<String, Object> getStudentDashboard(String username) {
+        return Map.of();
+    }
 }

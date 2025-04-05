@@ -1,11 +1,11 @@
 package com.example.Standup.Controller;
 
-import com.example.Standup.Entity.Assignment;
-import com.example.Standup.Entity.Credit;
-import com.example.Standup.Entity.Feedback;
-import com.example.Standup.Entity.Teacher;
+import com.example.Standup.Entity.*;
+import com.example.Standup.JWT.JwtUtil;
+import com.example.Standup.Service.StudentService;
 import com.example.Standup.Service.TeacherService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/su")
@@ -23,21 +24,92 @@ public class TeacherController {
     private final TeacherService teacherService;
     private final PasswordEncoder passwordEncoder;
 
-    // Fetch teacher dashboard details
-    @GetMapping("/teacher/dashboard")
-    public ResponseEntity<?> getTeacherDashboard(Authentication authentication) {
+    // DTO for dashboard response
+    public static class TeacherDashboardResponse {
+        private final Teacher teacher;
+        private final List<Assignment> assignments;
+
+        public TeacherDashboardResponse(Teacher teacher, List<Assignment> assignments) {
+            this.teacher = teacher;
+            this.assignments = assignments;
+        }
+
+        public Teacher getTeacher() {
+            return teacher;
+        }
+
+        public List<Assignment> getAssignments() {
+            return assignments;
+        }
+    }
+
+    @RequestMapping("/su")
+    public class StudentController {
+
+        @Autowired
+        private StudentService studentService;
+
+        @GetMapping("/student-dashboard")
+        public ResponseEntity<?> getStudentDashboard(@RequestHeader("Authorization") String token) {
+            try {
+                // Extract username from token
+                JwtUtil jwtUtil = new JwtUtil();
+                String username = jwtUtil.extractUsername(token.replace("Bearer ", ""));
+
+                // Get dashboard data
+                Map<String, Object> response = studentService.getStudentDashboard(username);
+                return ResponseEntity.ok(response);
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching dashboard");
+            }
+        }
+    }
+
+    // Create Assignment - Updated to match frontend
+    @PostMapping("/teacher/create-assignment")
+    public ResponseEntity<?> createAssignment(@RequestBody Assignment assignment, Authentication authentication) {
         try {
             String username = authentication.getName();
             Teacher teacher = teacherService.getTeacherByUsername(username);
             if (teacher == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Teacher not found");
             }
-            List<Assignment> assignments = teacherService.getAssignmentsByTeacher(teacher.getId());
-            return ResponseEntity.ok(new TeacherDashboardResponse(teacher, assignments));
+
+            // Basic validation
+            if (assignment.getTitle() == null || assignment.getTitle().isEmpty()) {
+                return ResponseEntity.badRequest().body("Assignment title is required");
+            }
+
+            assignment.setTeacher(teacher);
+            Assignment createdAssignment = teacherService.createAssignment(assignment);
+            return ResponseEntity.ok(createdAssignment);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching dashboard: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error creating assignment: " + e.getMessage());
         }
     }
+
+    // Get assignments by module - Added for frontend
+    @GetMapping("/teacher/assignments/module")
+    public ResponseEntity<?> getAssignmentsByModule(@RequestParam String module, Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            Teacher teacher = teacherService.getTeacherByUsername(username);
+            if (teacher == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Teacher not found");
+            }
+            if (!teacher.getModules().contains(module)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not authorized for this module");
+            }
+            List<Assignment> assignments = teacherService.getAssignmentsByModules(module);
+            return ResponseEntity.ok(assignments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error fetching assignments: " + e.getMessage());
+        }
+    }
+
+    // ... [Keep all other existing methods unchanged]
 
     @PostMapping("/teacher")
     public ResponseEntity<String> createTeacher(@RequestBody Teacher teacher) {
@@ -49,7 +121,7 @@ public class TeacherController {
     public ResponseEntity<?> updateTeacher(@PathVariable Long teacherId, @RequestBody Teacher updatedTeacher) {
         try {
             Teacher existingTeacher = teacherService.getTeacherById(teacherId);
-            if (existingTeacher != null) {
+            if (existingTeacher == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Teacher not found");
             }
             if (updatedTeacher.getName() != null) {
@@ -58,9 +130,9 @@ public class TeacherController {
             if (updatedTeacher.getModules() != null) {
                 existingTeacher.setModules(updatedTeacher.getModules());
             }
-            if (updatedTeacher.getActive() != null) {
-                existingTeacher.setActive(updatedTeacher.getActive());
-            }
+            // Remove the null check for active since it's a primitive boolean
+            existingTeacher.setActive(updatedTeacher.getActive());
+
             if (updatedTeacher.getPassword() != null && !updatedTeacher.getPassword().isEmpty()) {
                 existingTeacher.setPassword(passwordEncoder.encode(updatedTeacher.getPassword()));
             }
@@ -91,81 +163,37 @@ public class TeacherController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
     }
 
-    // Create Assignment
-    @PostMapping("/teacher/create-assignment")
-    public ResponseEntity<?> createAssignment(@RequestBody Assignment assignment, Authentication authentication) {
-        try {
-            // Get the logged-in teacher
-            String username = authentication.getName();
-            Teacher teacher = teacherService.getTeacherByUsername(username);
-            if (teacher == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Teacher not found");
-            }
-
-            // Set the teacher for the new assignment
-            assignment.setTeacher(teacher);
-
-            // Save the assignment
-            Assignment createdAssignment = teacherService.createAssignment(assignment);
-
-            return ResponseEntity.ok(createdAssignment);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating assignment: " + e.getMessage());
-        }
-    }
-
-
-    // Assign Credit to Student for an Assignment
     @PostMapping("/teacher/assignment/{assignmentId}/give-credit")
     public ResponseEntity<?> assignCredit(
             @PathVariable Long assignmentId,
             @RequestBody Credit credit,
             Authentication authentication) {
-
         try {
-            // Get the logged-in teacher
             String username = authentication.getName();
             Teacher teacher = teacherService.getTeacherByUsername(username);
             if (teacher == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Teacher not found");
             }
 
-            // Fetch the assignment
             Assignment assignment = teacherService.getAssignmentById(assignmentId);
             if (assignment == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Assignment not found");
             }
 
-            // Ensure the credit is assigned to the correct student
             if (credit.getStudent() == null || credit.getMarks() < 0) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid credit information");
             }
 
-            // Set the assignment to the credit
             credit.setAssignment(assignment);
-
-            // Save the credit to the database
             Credit assignedCredit = teacherService.assignCredit(credit);
-
             return ResponseEntity.ok(assignedCredit);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error assigning credit: " + e.getMessage());
         }
     }
 
-
     @PostMapping("/feedback")
     public ResponseEntity<Feedback> sendFeedback(@RequestBody Feedback feedback) {
         return ResponseEntity.ok(teacherService.sendFeedback(feedback));
-    }
-
-    // DTO class for teacher dashboard response
-    static class TeacherDashboardResponse {
-        public Teacher teacher;
-        public List<Assignment> assignments;
-        public TeacherDashboardResponse(Teacher teacher, List<Assignment> assignments) {
-            this.teacher = teacher;
-            this.assignments = assignments;
-        }
     }
 }

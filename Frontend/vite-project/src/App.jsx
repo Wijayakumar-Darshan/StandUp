@@ -12,12 +12,12 @@ import EditTeacher from "./Project/Admin/ManageTeacher/EditTeacher";
 import EditStudent from "./Project/Admin/ManageStudent/EditStudent";
 import CreateAssignment from "./Project/Teacher/CreateAssignment";
 import GiveCredits from "./Project/Teacher/GiveCredits";
-import ManageCredits from "./Project/Teacher/ManageCredits"; // Newly added
+import ManageCredits from "./Project/Teacher/ManageCredits";
 import Unauthorized from "./Project/Unauthorized";
 import ProtectedRoute from "./Project/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import ModuleDetails from "./Project/Teacher/View";
+import ModuleDetails from "./Project/Teacher/ModuleDetails";  // Importing ModuleDetails component
 
 function App() {
   return (
@@ -44,11 +44,8 @@ function App() {
           <Route path="/teacher" element={<TeacherDashboard />} />
           <Route path="/create-assignment" element={<CreateAssignment />} />
           <Route path="/give-credits/:assignmentId" element={<GiveCredits />} />
-          <Route path="/manage-credits" element={<ManageCredits />} /> 
-          // In your main router file (e.g., App.js)
-          <Route path="/module/:module" element={<ModuleDetails />} />
-
-          {/* Newly added */}
+          <Route path="/manage-credits" element={<ManageCredits />} />
+          <Route path="/module/:module" element={<ModuleDetails />} /> {/* Route for ModuleDetails */}
         </Route>
 
         {/* Student Routes - Protected */}
